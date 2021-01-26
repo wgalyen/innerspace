@@ -1,0 +1,10 @@
+[package]
+name = "innerspace"
+version = "0.0.1"
+authors = ["Warren Galyen"]
+edition = "2018"
+
+[dependencies]
+phf = { version = "0.8.0", features = ["macros"] }
+cascade = "1.0.0"
+structopt = "0.3.21"
