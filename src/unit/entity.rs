@@ -21,7 +21,7 @@
 //   - For example, how do browsers interpret "Chuck-&amp-Cheese", "1&amp1", and
 //   "&ampe;"?
 
-// hyperbuild implementation:
+// innerspace implementation:
 // - Entities must start with an ampersand and end with a semicolon.
 // - Once an ampersand is encountered, it and the sequence of characters
 // following must match the following ECMAScript regular expression to be
@@ -33,7 +33,7 @@
 // a well formed entity, the ampersand is considered a bare ampersand.
 //   - A bare ampersand is an ampersand that is interpreted literally and not as
 //   the start of an entity.
-//   - hyperbuild looks ahead without consuming to check if the following
+//   - innerspace looks ahead without consuming to check if the following
 //   characters would form a well formed entity. If they don't, only the longest
 //   subsequence that could form a well formed entity is consumed.
 // - An entity is considered invalid if it is well formed but represents a
