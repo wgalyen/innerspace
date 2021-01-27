@@ -1,5 +1,5 @@
-use phf::Map;
 use crate::proc::Processor;
+use phf::Map;
 
 pub struct SinglePattern {
     seq: &'static [u8],
@@ -27,7 +27,7 @@ impl SinglePattern {
                     hay_idx += 1;
                 };
             };
-        };
+        }
 
         None
     }
@@ -53,7 +53,7 @@ impl<V: 'static + Copy> TrieNode<V> {
             if current.value.is_some() {
                 found = current.value;
             };
-        };
+        }
         found
     }
 }

@@ -2,12 +2,12 @@ use crate::err::{ErrorType, ProcessingResult};
 use crate::proc::{Processor, ProcessorRange};
 use crate::spec::codepoint::{is_alphanumeric, is_whitespace};
 use crate::spec::tag::void::VOID_TAGS;
-use crate::unit::attr::{AttrType, process_attr, ProcessedAttr};
+use crate::unit::attr::{process_attr, AttrType, ProcessedAttr};
 use crate::unit::content::process_content;
-use crate::unit::style::process_style;
-use phf::{Set, phf_set};
-use crate::unit::script::text::process_text_script;
 use crate::unit::script::js::process_js_script;
+use crate::unit::script::text::process_text_script;
+use crate::unit::style::process_style;
+use phf::{phf_set, Set};
 
 pub static JAVASCRIPT_MIME_TYPES: Set<&'static [u8]> = phf_set! {
     b"application/ecmascript",
@@ -46,7 +46,11 @@ pub fn process_tag(proc: &mut Processor) -> ProcessingResult<()> {
     // Expect to be currently at an opening tag.
     chain!(proc.match_char(b'<').expect().keep());
     // May not be valid tag name at current position, so require instead of expect.
-    let opening_name_range = chain!(proc.match_while_pred(is_valid_tag_name_char).require_with_reason("tag name")?.keep().out_range());
+    let opening_name_range = chain!(proc
+        .match_while_pred(is_valid_tag_name_char)
+        .require_with_reason("tag name")?
+        .keep()
+        .out_range());
 
     // TODO DOC: Tags must be case sensitive.
     let tag_type = match &proc[opening_name_range] {
@@ -89,28 +93,37 @@ pub fn process_tag(proc: &mut Processor) -> ProcessingResult<()> {
         let ProcessedAttr { name, typ, value } = process_attr(proc)?;
         match &proc[name] {
             b"type" => attr_type_value = value,
-            _ => {},
+            _ => {}
         };
         last_attr_type = Some(typ);
-    };
+    }
 
     if self_closing || VOID_TAGS.contains(&proc[opening_name_range]) {
         return Ok(());
     };
 
     match tag_type {
-        TagType::Script => if attr_type_value.is_none() || attr_type_value.filter(|n| JAVASCRIPT_MIME_TYPES.contains(&proc[*n])).is_some() {
-            process_js_script(proc)?;
-        } else {
-            process_text_script(proc)?;
-        },
+        TagType::Script => {
+            if attr_type_value.is_none()
+                || attr_type_value
+                    .filter(|n| JAVASCRIPT_MIME_TYPES.contains(&proc[*n]))
+                    .is_some()
+            {
+                process_js_script(proc)?;
+            } else {
+                process_text_script(proc)?;
+            }
+        }
         TagType::Style => process_style(proc)?,
         _ => process_content(proc, Some(opening_name_range))?,
     };
 
     // Require closing tag for non-void.
     chain!(proc.match_seq(b"</").require()?.keep());
-    chain!(proc.match_while_pred(is_valid_tag_name_char).require_with_reason("closing tag name")?.keep());
+    chain!(proc
+        .match_while_pred(is_valid_tag_name_char)
+        .require_with_reason("closing tag name")?
+        .keep());
     chain!(proc.match_char(b'>').require()?.keep());
     Ok(())
 }

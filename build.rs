@@ -7,18 +7,23 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 fn create_byte_string_literal(bytes: &[u8]) -> String {
-    format!("b\"{}\"", bytes
-        .iter()
-        .map(|&b| if b >= b' ' && b <= b'~' && b != b'\\' && b != b'"' {
-            (b as char).to_string()
-        } else {
-            format!("\\x{:02x}", b)
-        })
-        .collect::<String>())
+    format!(
+        "b\"{}\"",
+        bytes
+            .iter()
+            .map(|&b| if b >= b' ' && b <= b'~' && b != b'\\' && b != b'"' {
+                (b as char).to_string()
+            } else {
+                format!("\\x{:02x}", b)
+            })
+            .collect::<String>()
+    )
 }
 
 fn read_json<T>(name: &str) -> T
-    where for<'de> T: Deserialize<'de> {
+where
+    for<'de> T: Deserialize<'de>,
+{
     let patterns_path = Path::new("gen").join(format!("{}.json", name));
     let patterns_file = File::open(patterns_path).unwrap();
     serde_json::from_reader(patterns_file).unwrap()
@@ -67,19 +72,26 @@ impl TrieBuilderNode {
                 current.children.insert(c, TrieBuilderNode::new());
             };
             current = current.children.get_mut(&c).unwrap();
-        };
+        }
         assert!(current.value_as_code.is_none());
         current.value_as_code = Some(val);
     }
 
     fn build(&self, ai: &mut AutoIncrement, value_type: &'static str, out: &mut String) -> usize {
-        let child_ids: Vec<(char, usize)> = self.children
+        let child_ids: Vec<(char, usize)> = self
+            .children
             .iter()
             .map(|(&c, n)| (c, n.build(ai, value_type, out)))
             .collect();
         let id = ai.next();
 
-        out.push_str(format!("static N{}: TrieNode<{}> = TrieNode::<{}> {{\n", id, value_type, value_type).as_str());
+        out.push_str(
+            format!(
+                "static N{}: TrieNode<{}> = TrieNode::<{}> {{\n",
+                id, value_type, value_type
+            )
+            .as_str(),
+        );
         out.push_str(format!("children: phf_map! {{\n").as_str());
         for (c, n) in child_ids {
             out.push_str(format!("b'{}' => &N{},\n", c, n).as_str());
@@ -118,11 +130,17 @@ fn build_pattern(pattern: String) -> String {
                 i += 1;
             };
         };
-    };
+    }
 
-    format!("SinglePattern {{ seq: {}, table: &[{}] }}",
+    format!(
+        "SinglePattern {{ seq: {}, table: &[{}] }}",
         create_byte_string_literal(pattern.as_bytes()),
-        table.iter().map(|v| v.to_string()).collect::<Vec<String>>().join(", "))
+        table
+            .iter()
+            .map(|v| v.to_string())
+            .collect::<Vec<String>>()
+            .join(", ")
+    )
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -138,18 +156,25 @@ fn generate_entities() {
     // Add entities to trie builder.
     let mut trie_builder = TrieBuilderNode::new();
     for (rep, entity) in entities {
-        trie_builder.add(&rep[1..], create_byte_string_literal(entity.characters.as_bytes()));
-    };
+        trie_builder.add(
+            &rep[1..],
+            create_byte_string_literal(entity.characters.as_bytes()),
+        );
+    }
     // Generate trie code from builder.
     let mut trie_code = String::new();
-    let trie_root_id = trie_builder.build(&mut AutoIncrement::new(), "&'static [u8]", &mut trie_code);
+    let trie_root_id =
+        trie_builder.build(&mut AutoIncrement::new(), "&'static [u8]", &mut trie_code);
 
     // Write trie code to output Rust file.
     // Make trie root public and use proper variable name.
-    write_rs("entities", trie_code.replace(
-        format!("static N{}:", trie_root_id).as_str(),
-        "pub static ENTITY_REFERENCES:",
-    ));
+    write_rs(
+        "entities",
+        trie_code.replace(
+            format!("static N{}:", trie_root_id).as_str(),
+            "pub static ENTITY_REFERENCES:",
+        ),
+    );
 }
 
 fn generate_patterns() {
@@ -159,8 +184,15 @@ fn generate_patterns() {
     // Add entities to trie builder.
     let mut code = String::new();
     for (name, pattern) in patterns {
-        code.push_str(format!("pub static {}: &SinglePattern = &{};", name, build_pattern(pattern)).as_str());
-    };
+        code.push_str(
+            format!(
+                "pub static {}: &SinglePattern = &{};",
+                name,
+                build_pattern(pattern)
+            )
+            .as_str(),
+        );
+    }
 
     // Write trie code to output Rust file.
     write_rs("patterns", code);

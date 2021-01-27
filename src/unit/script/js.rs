@@ -1,5 +1,5 @@
-use crate::err::{ProcessingResult, ErrorType};
-use crate::proc::{Processor};
+use crate::err::{ErrorType, ProcessingResult};
+use crate::proc::Processor;
 
 fn is_string_delimiter(c: u8) -> bool {
     c == b'"' || c == b'\''
@@ -34,7 +34,7 @@ fn parse_comment_multi(proc: &mut Processor) -> ProcessingResult<()> {
         }
 
         proc.accept()?;
-    };
+    }
 
     Ok(())
 }
@@ -63,7 +63,7 @@ fn parse_string(proc: &mut Processor) -> ProcessingResult<()> {
         }
 
         escaping = false;
-    };
+    }
 
     Ok(())
 }
@@ -86,7 +86,7 @@ fn parse_template(proc: &mut Processor) -> ProcessingResult<()> {
         }
 
         escaping = false;
-    };
+    }
 
     Ok(())
 }
@@ -104,6 +104,6 @@ pub fn process_js_script(proc: &mut Processor) -> ProcessingResult<()> {
         } else {
             proc.accept()?;
         }
-    };
+    }
     Ok(())
 }

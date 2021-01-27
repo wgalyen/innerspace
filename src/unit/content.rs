@@ -2,13 +2,13 @@ use crate::err::ProcessingResult;
 use crate::proc::{Checkpoint, Processor, ProcessorRange};
 use crate::spec::codepoint::is_whitespace;
 use crate::spec::tag::content::CONTENT_TAGS;
+use crate::spec::tag::contentfirst::CONTENT_FIRST_TAGS;
 use crate::spec::tag::formatting::FORMATTING_TAGS;
 use crate::spec::tag::wss::WSS_TAGS;
 use crate::unit::bang::process_bang;
 use crate::unit::comment::process_comment;
-use crate::unit::entity::{EntityType, parse_entity};
+use crate::unit::entity::{parse_entity, EntityType};
 use crate::unit::tag::process_tag;
-use crate::spec::tag::contentfirst::CONTENT_FIRST_TAGS;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 enum ContentType {
@@ -63,19 +63,29 @@ impl ContentType {
     }
 }
 
-pub fn process_content(proc: &mut Processor, parent: Option<ProcessorRange>) -> ProcessingResult<()> {
+pub fn process_content(
+    proc: &mut Processor,
+    parent: Option<ProcessorRange>,
+) -> ProcessingResult<()> {
     let collapse_whitespace = match parent {
         Some(tag_name) => !WSS_TAGS.contains(&proc[tag_name]),
         // Should collapse whitespace for root content.
         None => true,
     };
     let destroy_whole_whitespace = match parent {
-        Some(tag_name) => !WSS_TAGS.contains(&proc[tag_name]) && !CONTENT_TAGS.contains(&proc[tag_name]) && !CONTENT_FIRST_TAGS.contains(&proc[tag_name]) && !FORMATTING_TAGS.contains(&proc[tag_name]),
+        Some(tag_name) => {
+            !WSS_TAGS.contains(&proc[tag_name])
+                && !CONTENT_TAGS.contains(&proc[tag_name])
+                && !CONTENT_FIRST_TAGS.contains(&proc[tag_name])
+                && !FORMATTING_TAGS.contains(&proc[tag_name])
+        }
         // Should destroy whole whitespace for root content.
         None => true,
     };
     let trim_whitespace = match parent {
-        Some(tag_name) => !WSS_TAGS.contains(&proc[tag_name]) && !FORMATTING_TAGS.contains(&proc[tag_name]),
+        Some(tag_name) => {
+            !WSS_TAGS.contains(&proc[tag_name]) && !FORMATTING_TAGS.contains(&proc[tag_name])
+        }
         // Should trim whitespace for root content.
         None => true,
     };
@@ -124,10 +134,16 @@ pub fn process_content(proc: &mut Processor, parent: Option<ProcessorRange>) -> 
 
         // Next character is not whitespace, so handle any previously ignored whitespace.
         if let Some(ws) = whitespace_checkpoint_opt {
-            if destroy_whole_whitespace && last_non_whitespace_content_type.is_comment_bang_opening_tag() && next_content_type.is_comment_bang_opening_tag() {
+            if destroy_whole_whitespace
+                && last_non_whitespace_content_type.is_comment_bang_opening_tag()
+                && next_content_type.is_comment_bang_opening_tag()
+            {
                 // Whitespace is between two tags, comments, or bangs.
                 // destroy_whole_whitespace is on, so don't write it.
-            } else if trim_whitespace && (next_content_type == ContentType::End || last_non_whitespace_content_type == ContentType::Start) {
+            } else if trim_whitespace
+                && (next_content_type == ContentType::End
+                    || last_non_whitespace_content_type == ContentType::Start)
+            {
                 // Whitespace is leading or trailing.
                 // should_trim_whitespace is on, so don't write it.
             } else if collapse_whitespace {
@@ -144,18 +160,28 @@ pub fn process_content(proc: &mut Processor, parent: Option<ProcessorRange>) -> 
 
         // Process and consume next character(s).
         match next_content_type {
-            ContentType::Comment => { process_comment(proc)?; }
-            ContentType::Bang => { process_bang(proc)?; }
-            ContentType::OpeningTag => { process_tag(proc)?; }
-            ContentType::End => { break; }
+            ContentType::Comment => {
+                process_comment(proc)?;
+            }
+            ContentType::Bang => {
+                process_bang(proc)?;
+            }
+            ContentType::OpeningTag => {
+                process_tag(proc)?;
+            }
+            ContentType::End => {
+                break;
+            }
             // Entity has already been processed.
             ContentType::Entity => {}
-            ContentType::Text => { proc.accept()?; }
+            ContentType::Text => {
+                proc.accept()?;
+            }
             _ => unreachable!(),
         };
 
         last_non_whitespace_content_type = next_content_type;
-    };
+    }
 
     Ok(())
 }

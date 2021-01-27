@@ -1,5 +1,5 @@
+use crate::err::{ErrorType, ProcessingResult};
 use crate::proc::Processor;
-use crate::err::{ProcessingResult, ErrorType};
 
 fn is_string_delimiter(c: u8) -> bool {
     match c {
@@ -14,7 +14,7 @@ fn parse_comment(proc: &mut Processor) -> ProcessingResult<()> {
     // Unlike script tags, style comments do NOT end at closing tag.
     while !chain!(proc.match_seq(b"*/").keep().matched()) {
         proc.accept()?;
-    };
+    }
 
     Ok(())
 }
@@ -43,7 +43,7 @@ fn parse_string(proc: &mut Processor) -> ProcessingResult<()> {
         }
 
         escaping = false;
-    };
+    }
 
     Ok(())
 }
@@ -57,7 +57,7 @@ pub fn process_style(proc: &mut Processor) -> ProcessingResult<()> {
         } else {
             proc.accept()?;
         }
-    };
+    }
 
     Ok(())
 }
