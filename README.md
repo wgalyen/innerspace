@@ -29,7 +29,7 @@ innerspace has advanced context-aware whitespace minification that does things s
 There are three whitespace minification methods. When processing text content, innerspace chooses which ones to use depending on the containing element.
 
 <details>
-<summary>Collapse whitespace</summary>
+<summary><strong>Collapse whitespace</strong></summary>
 
 > **Applies to:** text in root and any element except [whitespace sensitive](./src/spec/tag/wss.rs) elements.
 
@@ -55,7 +55,7 @@ Reduce a sequence of whitespace characters in text nodes to a single space (U+00
 </details>
 
 <details>
-<summary>Destroy whole whitespace</summary>
+<summary><strong>Destroy whole whitespace</strong></summary>
 
 > **Applies to:** text in root and any element except [whitespace sensitive](./src/spec/tag/wss.rs), [content](./src/spec/tag/content.rs), [content-first](./src/spec/tag/contentfirst.rs), and [formatting](./src/spec/tag/formatting.rs) elements.
 
@@ -83,7 +83,7 @@ Remove any text nodes that only consist of whitespace characters.
 </details>
 
 <details>
-<summary>Trim whitespace</summary>
+<summary><strong>Trim whitespace</strong></summary>
 
 > **Applies to:** text in root and any element except [whitespace sensitive](./src/spec/tag/wss.rs) and [formatting](./src/spec/tag/formatting.rs) elements.
 
@@ -122,7 +122,7 @@ innerspace groups elements based on how it assumes they are used. By making thes
 |Content-first|`label`, `li`, [and others](./src/spec/tag/contentfirst.rs)|Like content element but could have exactly one of an layout element's expected content elements.|
 
 <details>
-<summary>Formatting elements</summary>
+<summary><strong>Formatting elements</strong></summary>
 
 > Whitespace is collapsed.
 Formatting elements are usually inline elements that wrap around part of some text in a content element, so its whitespace isn't trimmed as they're probably part of the content.
@@ -130,7 +130,7 @@ Formatting elements are usually inline elements that wrap around part of some te
 </details>
 
 <details>
-<summary>Content elements</summary>
+<summary><strong>Content elements</strong></summary>
 
 > Whitespace is trimmed and collapsed.
 Content elements usually represent a contiguous and complete unit of content such as a paragraph. As such, whitespace is significant but sequences of them are most likely due to formatting.
@@ -154,7 +154,7 @@ Content elements usually represent a contiguous and complete unit of content suc
 </details>
 
 <details>
-<summary>Layout elements</summary>
+<summary><strong>Layout elements</strong></summary>
 
 > Whitespace is trimmed and collapsed. Whole whitespace is removed.
 These elements should only contain other elements and no text. This makes it possible to remove whole whitespace, which is useful when using `display: inline-block` so that whitespace between elements (e.g. indentation) does not alter layout and styling.
@@ -178,7 +178,7 @@ These elements should only contain other elements and no text. This makes it pos
 </details>
 
 <details>
-<summary>Content-first elements</summary>
+<summary><strong>Content-first elements</strong></summary>
 
 > Whitespace is trimmed and collapsed.
 
