@@ -1,5 +1,5 @@
 use std::fs::File;
-use std::io::{stderr, Read, Write};
+use std::io::{Read, stderr, Write};
 
 use structopt::StructOpt;
 
@@ -18,15 +18,11 @@ fn main() {
     let args = Cli::from_args();
     let mut code = Vec::<u8>::new();
     let mut src_file = File::open(args.src).expect("could not open source file");
-    src_file
-        .read_to_end(&mut code)
-        .expect("could not read source file");
+    src_file.read_to_end(&mut code).expect("could not read source file");
     match innerspace(&mut code) {
         Ok(out_len) => {
             let mut out_file = File::create(args.out).expect("could not open output file");
-            out_file
-                .write_all(&code[..out_len])
-                .expect("could not write to output file");
+            out_file.write_all(&code[..out_len]).expect("could not write to output file");
         }
         Err((err, pos)) => {
             eprintln!("Failed at character {}:", pos);
@@ -41,10 +37,7 @@ fn main() {
                     eprintln!("Unterminated JavaScript string.");
                 }
                 ErrorType::CharNotFound { need, got } => {
-                    eprintln!(
-                        "Expected {} (U+{:X}), got {} (U+{:X}).",
-                        need as char, need, got as char, got
-                    );
+                    eprintln!("Expected {} (U+{:X}), got {} (U+{:X}).", need as char, need, got as char, got);
                 }
                 ErrorType::MatchNotFound(seq) => {
                     eprint!("Expected `");

@@ -90,16 +90,7 @@ impl<'d> Index<ProcessorRange> for Processor<'d> {
 impl<'d> Processor<'d> {
     // Constructor.
     pub fn new(code: &mut [u8]) -> Processor {
-        Processor {
-            write_next: 0,
-            read_next: 0,
-            code,
-            match_start: 0,
-            match_dest: 0,
-            match_len: 0,
-            match_char: None,
-            match_reason: RequireReason::Custom,
-        }
+        Processor { write_next: 0, read_next: 0, code, match_start: 0, match_dest: 0, match_len: 0, match_char: None, match_reason: RequireReason::Custom }
     }
 
     // INTERNAL APIs.
@@ -129,8 +120,7 @@ impl<'d> Processor<'d> {
     fn _shift(&mut self, amount: usize) -> () {
         // Optimisation: Don't shift if already there (but still update offsets).
         if self.read_next != self.write_next {
-            self.code
-                .copy_within(self.read_next..self.read_next + amount, self.write_next);
+            self.code.copy_within(self.read_next..self.read_next + amount, self.write_next);
         };
         self.read_next += amount;
         self.write_next += amount;
@@ -156,7 +146,7 @@ impl<'d> Processor<'d> {
         let mut count = 0usize;
         while self._in_bounds(count) && cond(self._read_offset(count)) {
             count += 1;
-        }
+        };
         self._new_match(count, None, RequireReason::Custom)
     }
     // Ensure that match is nonempty or return error.
@@ -166,10 +156,7 @@ impl<'d> Processor<'d> {
         } else {
             match self.match_reason {
                 RequireReason::Custom => Err(ErrorType::NotFound(custom_reason.unwrap())),
-                RequireReason::ExpectedNotChar(c) => Err(ErrorType::CharNotFound {
-                    need: c,
-                    got: self.match_char.unwrap(),
-                }),
+                RequireReason::ExpectedNotChar(c) => Err(ErrorType::CharNotFound { need: c, got: self.match_char.unwrap() }),
                 RequireReason::ExpectedChar(c) => Err(ErrorType::UnexpectedChar(c)),
                 RequireReason::ExpectedMatch(m) => Err(ErrorType::MatchNotFound(m)),
             }
@@ -205,16 +192,10 @@ impl<'d> Processor<'d> {
         self.match_char
     }
     pub fn range(&self) -> ProcessorRange {
-        ProcessorRange {
-            start: self.match_start,
-            end: self.match_start + self.match_len,
-        }
+        ProcessorRange { start: self.match_start, end: self.match_start + self.match_len }
     }
     pub fn out_range(&self) -> ProcessorRange {
-        ProcessorRange {
-            start: self.match_dest,
-            end: self.match_dest + self.match_len,
-        }
+        ProcessorRange { start: self.match_dest, end: self.match_dest + self.match_len }
     }
     pub fn slice(&self) -> &[u8] {
         &self.code[self.match_start..self.match_start + self.match_len]
@@ -277,22 +258,16 @@ impl<'d> Processor<'d> {
                     break;
                 };
                 count += 1;
-            }
+            };
         };
         self._new_match(count, None, RequireReason::ExpectedMatch(pat))
     }
     pub fn match_line_terminator(&mut self) -> () {
-        self._new_match(
-            match self._maybe_read_offset(0) {
-                Some(b'\n') => 1,
-                Some(b'\r') => {
-                    1 + self._maybe_read_offset(1).filter(|c| *c == b'\n').is_some() as usize
-                }
-                _ => 0,
-            },
-            None,
-            RequireReason::Custom,
-        )
+        self._new_match(match self._maybe_read_offset(0) {
+            Some(b'\n') => 1,
+            Some(b'\r') => 1 + self._maybe_read_offset(1).filter(|c| *c == b'\n').is_some() as usize,
+            _ => 0,
+        }, None, RequireReason::Custom)
     }
 
     // Multi-char matching APIs.
@@ -340,8 +315,7 @@ impl<'d> Processor<'d> {
         // Get src code from checkpoint until last consumed character (inclusive).
         let src_start = checkpoint.read_next;
         let src_end = self.read_next;
-        self.code
-            .copy_within(src_start..src_end, checkpoint.write_next);
+        self.code.copy_within(src_start..src_end, checkpoint.write_next);
         self.read_next = src_end;
         self.write_next += src_end - src_start;
     }
@@ -351,17 +325,11 @@ impl<'d> Processor<'d> {
     }
     /// Get consumed characters since checkpoint as range.
     pub fn consumed_range(&self, checkpoint: Checkpoint) -> ProcessorRange {
-        ProcessorRange {
-            start: checkpoint.read_next,
-            end: self.read_next,
-        }
+        ProcessorRange { start: checkpoint.read_next, end: self.read_next }
     }
     /// Get written characters since checkpoint as range.
     pub fn written_range(&self, checkpoint: Checkpoint) -> ProcessorRange {
-        ProcessorRange {
-            start: checkpoint.write_next,
-            end: self.write_next,
-        }
+        ProcessorRange { start: checkpoint.write_next, end: self.write_next }
     }
     /// Get amount of source characters consumed since checkpoint.
     pub fn consumed_count(&self, checkpoint: Checkpoint) -> usize {
@@ -379,8 +347,7 @@ impl<'d> Processor<'d> {
         self._maybe_read_offset(offset)
     }
     pub fn peek_offset(&self, offset: usize) -> ProcessingResult<u8> {
-        self._maybe_read_offset(offset)
-            .ok_or(ErrorType::UnexpectedEnd)
+        self._maybe_read_offset(offset).ok_or(ErrorType::UnexpectedEnd)
     }
     pub fn peek_eof(&self) -> Option<u8> {
         self._maybe_read_offset(0)
@@ -412,8 +379,12 @@ impl<'d> Processor<'d> {
             Err(ErrorType::UnexpectedEnd)
         }
     }
+    pub fn skip_amount_expect(&mut self, amount: usize) -> () {
+        debug_assert!(!self.at_end(), "skip known characters");
+        self.read_next += amount;
+    }
     pub fn skip_expect(&mut self) -> () {
-        assert!(!self.at_end(), "skip known character");
+        debug_assert!(!self.at_end(), "skip known character");
         self.read_next += 1;
     }
 
@@ -447,6 +418,12 @@ impl<'d> Processor<'d> {
         } else {
             Err(ErrorType::UnexpectedEnd)
         }
+    }
+    pub fn accept_expect(&mut self) -> u8 {
+        debug_assert!(!self.at_end());
+        let c = self._read_offset(0);
+        self._shift(1);
+        c
     }
     pub fn accept_amount(&mut self, count: usize) -> ProcessingResult<()> {
         // Check for zero to prevent underflow as type is usize.

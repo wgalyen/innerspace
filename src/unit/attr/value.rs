@@ -1,9 +1,9 @@
-use phf::{phf_map, Map};
+use phf::{Map, phf_map};
 
 use crate::err::ProcessingResult;
 use crate::proc::{Processor, ProcessorRange};
 use crate::spec::codepoint::is_whitespace;
-use crate::unit::entity::{parse_entity, EntityType};
+use crate::unit::entity::{EntityType, parse_entity};
 
 pub fn is_double_quote(c: u8) -> bool {
     c == b'"'
@@ -55,13 +55,7 @@ impl CharType {
             b'"' => CharType::DoubleQuote,
             b'\'' => CharType::SingleQuote,
             b'>' => CharType::RightChevron,
-            c => {
-                if is_whitespace(c) {
-                    CharType::Whitespace(c)
-                } else {
-                    CharType::Normal(c)
-                }
-            }
+            c => if is_whitespace(c) { CharType::Whitespace(c) } else { CharType::Normal(c) },
         }
     }
 }
@@ -230,15 +224,12 @@ pub struct ProcessedAttrValue {
 }
 
 // TODO WARNING: Decoding entities:
+// `attr="&amp;nbsp;"` becomes `attr=&nbsp;` which is incorrect.
 // `attr="&&#97;&#109;&#112;;"` becomes `attr=&amp;` which is incorrect.
 // `attr="&am&#112;;"` becomes `attr=&amp;` which is incorrect.
 // `attr="&am&#112;"` becomes `attr=&amp` which is incorrect.
-// `attr="&am&112;;"` becomes `attr=&amp;` which is incorrect.
 // TODO Above also applies to decoding in content.
-pub fn process_attr_value(
-    proc: &mut Processor,
-    should_collapse_and_trim_ws: bool,
-) -> ProcessingResult<ProcessedAttrValue> {
+pub fn process_attr_value(proc: &mut Processor, should_collapse_and_trim_ws: bool) -> ProcessingResult<ProcessedAttrValue> {
     let src_delimiter = chain!(proc.match_pred(is_attr_quote).discard().maybe_char());
     let src_delimiter_pred = match src_delimiter {
         Some(b'"') => is_double_quote,
@@ -259,15 +250,9 @@ pub fn process_attr_value(
         collected_count: 0,
     };
     let mut char_type;
-    consume_attr_value_chars!(
-        proc,
-        should_collapse_and_trim_ws,
-        src_delimiter_pred,
-        char_type,
-        {
-            metrics.collect_char_type(char_type);
-        }
-    );
+    consume_attr_value_chars!(proc, should_collapse_and_trim_ws, src_delimiter_pred, char_type, {
+        metrics.collect_char_type(char_type);
+    });
 
     // Stage 2: optimally minify attribute value using metrics.
     proc.restore(src_value_checkpoint);
@@ -285,58 +270,48 @@ pub fn process_attr_value(
     // Used to determine first and last characters.
     let mut char_no = 0usize;
     let processed_value_checkpoint = proc.checkpoint();
-    consume_attr_value_chars!(
-        proc,
-        should_collapse_and_trim_ws,
-        src_delimiter_pred,
-        char_type,
-        {
-            match char_type {
-                // This should never happen.
-                CharType::End => unreachable!(),
+    consume_attr_value_chars!(proc, should_collapse_and_trim_ws, src_delimiter_pred, char_type, {
+        match char_type {
+            // This should never happen.
+            CharType::End => unreachable!(),
 
-                CharType::NonAsciiEntity(e) => e.keep(proc),
+            CharType::NonAsciiEntity(e) => e.keep(proc),
 
-                CharType::Normal(c) => proc.write(c),
-                // If unquoted, encode any whitespace anywhere.
-                CharType::Whitespace(c) => match optimal_delimiter {
-                    DelimiterType::Unquoted => proc.write_slice(ENCODED[&c]),
-                    _ => proc.write(c),
-                },
-                // If single quoted, encode any single quote anywhere.
-                // If unquoted, encode single quote if first character.
-                CharType::SingleQuote => match (optimal_delimiter, char_no) {
-                    (DelimiterType::Single, _) | (DelimiterType::Unquoted, 0) => {
-                        proc.write_slice(ENCODED[&b'\''])
-                    }
-                    _ => proc.write(b'\''),
-                },
-                // If double quoted, encode any double quote anywhere.
-                // If unquoted, encode double quote if first character.
-                CharType::DoubleQuote => match (optimal_delimiter, char_no) {
-                    (DelimiterType::Double, _) | (DelimiterType::Unquoted, 0) => {
-                        proc.write_slice(ENCODED[&b'"'])
-                    }
-                    _ => proc.write(b'"'),
-                },
-                // If unquoted, encode right chevron if last character.
-                CharType::RightChevron => {
-                    if optimal_delimiter == DelimiterType::Unquoted
-                        && char_no == metrics.collected_count - 1
-                    {
-                        proc.write_slice(ENCODED[&b'>']);
-                    } else {
-                        proc.write(b'>');
-                    }
-                }
-            };
-            char_no += 1;
-        }
-    );
+            CharType::Normal(c) => proc.write(c),
+            // If unquoted, encode any whitespace anywhere.
+            CharType::Whitespace(c) => match optimal_delimiter {
+                DelimiterType::Unquoted => proc.write_slice(ENCODED[&c]),
+                _ => proc.write(c),
+            },
+            // If single quoted, encode any single quote anywhere.
+            // If unquoted, encode single quote if first character.
+            CharType::SingleQuote => match (optimal_delimiter, char_no) {
+                (DelimiterType::Single, _) | (DelimiterType::Unquoted, 0) => proc.write_slice(ENCODED[&b'\'']),
+                _ => proc.write(b'\''),
+            },
+            // If double quoted, encode any double quote anywhere.
+            // If unquoted, encode double quote if first character.
+            CharType::DoubleQuote => match (optimal_delimiter, char_no) {
+                (DelimiterType::Double, _) | (DelimiterType::Unquoted, 0) => proc.write_slice(ENCODED[&b'"']),
+                _ => proc.write(b'"'),
+            },
+            // If unquoted, encode right chevron if last character.
+            CharType::RightChevron => if optimal_delimiter == DelimiterType::Unquoted && char_no == metrics.collected_count - 1 {
+                proc.write_slice(ENCODED[&b'>']);
+            } else {
+                proc.write(b'>');
+            },
+        };
+        char_no += 1;
+    });
     let processed_value_range = proc.written_range(processed_value_checkpoint);
     // Ensure closing delimiter in src has been matched and discarded, if any.
     if let Some(c) = src_delimiter {
-        chain!(proc.match_char(c).expect().discard());
+        if cfg!(debug_assertions) {
+            chain!(proc.match_char(c).expect().discard());
+        } else {
+            proc.skip_expect();
+        };
     }
     // Write closing delimiter, if any.
     if let Some(c) = optimal_delimiter_char {

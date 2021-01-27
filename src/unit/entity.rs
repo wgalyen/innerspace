@@ -1,8 +1,9 @@
+use phf::phf_map;
+
 use crate::err::ProcessingResult;
 use crate::pattern::TrieNode;
 use crate::proc::{Processor, ProcessorRange};
 use crate::spec::codepoint::{is_digit, is_hex_digit, is_lower_hex_digit, is_upper_hex_digit};
-use phf::phf_map;
 
 // The minimum length of any entity is 3, which is a character entity reference
 // with a single character name. The longest UTF-8 representation of a Unicode
@@ -54,12 +55,10 @@ macro_rules! handle_decoded_numeric_code_point {
         if !$at_least_one_digit || !chain!($proc.match_char(b';').discard().matched()) {
             return None;
         }
-        return std::char::from_u32($code_point).map(|c| {
-            if c.is_ascii() {
-                EntityType::Ascii(c as u8)
-            } else {
-                EntityType::Numeric(c)
-            }
+        return std::char::from_u32($code_point).map(|c| if c.is_ascii() {
+            EntityType::Ascii(c as u8)
+        } else {
+            EntityType::Numeric(c)
         });
     };
 }
@@ -75,7 +74,7 @@ fn parse_decimal(proc: &mut Processor) -> Option<EntityType> {
         } else {
             break;
         }
-    }
+    };
     handle_decoded_numeric_code_point!(proc, at_least_one_digit, val);
 }
 
@@ -99,25 +98,27 @@ fn parse_hexadecimal(proc: &mut Processor) -> Option<EntityType> {
         } else {
             break;
         }
-    }
+    };
     handle_decoded_numeric_code_point!(proc, at_least_one_digit, val);
 }
 
 fn parse_name(proc: &mut Processor) -> Option<EntityType> {
     // In UTF-8, one-byte character encodings are always ASCII.
-    ENTITY_REFERENCES.get(proc).map(|s| {
-        if s.len() == 1 {
-            EntityType::Ascii(s[0])
-        } else {
-            EntityType::Named(s)
-        }
+    ENTITY_REFERENCES.get(proc).map(|s| if s.len() == 1 {
+        EntityType::Ascii(s[0])
+    } else {
+        EntityType::Named(s)
     })
 }
 
 // This will parse and skip characters. Set a checkpoint to later write skipped, or to ignore results and reset to previous position.
 pub fn parse_entity(proc: &mut Processor) -> ProcessingResult<EntityType> {
     let checkpoint = proc.checkpoint();
-    chain!(proc.match_char(b'&').expect().discard());
+    if cfg!(debug_assertions) {
+        chain!(proc.match_char(b'&').expect().discard());
+    } else {
+        proc.skip_expect();
+    };
 
     // The input can end at any time after initial ampersand.
     // Examples of valid complete source code: "&", "&a", "&#", "&#09",
@@ -131,7 +132,7 @@ pub fn parse_entity(proc: &mut Processor) -> ProcessingResult<EntityType> {
     //    characters after the initial ampersand, e.g. "&#", "&#x", "&a".
     // 2. Parse the entity data, i.e. the characters between the ampersand
     // and semicolon.
-    //    - TODO To avoid parsing forever on malformed entities without
+    //    - To avoid parsing forever on malformed entities without
     //    semicolons, there is an upper bound on the amount of possible
     //    characters, based on the type of entity detected from the first
     //    stage.
@@ -139,17 +140,13 @@ pub fn parse_entity(proc: &mut Processor) -> ProcessingResult<EntityType> {
     //    - This simply checks if it refers to a valid Unicode code point or
     //    entity reference name.
 
-    // TODO Could optimise.
     // These functions do not return EntityType::Malformed as it requires a checkpoint.
     // Instead, they return None if entity is malformed.
     let entity_type = if chain!(proc.match_seq(b"#x").discard().matched()) {
         parse_hexadecimal(proc)
     } else if chain!(proc.match_char(b'#').discard().matched()) {
         parse_decimal(proc)
-    } else if chain!(proc
-        .match_pred(is_valid_entity_reference_name_char)
-        .matched())
-    {
+    } else if chain!(proc.match_pred(is_valid_entity_reference_name_char).matched()) {
         parse_name(proc)
     } else {
         // At this point, only consumed ampersand.

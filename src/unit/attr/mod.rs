@@ -3,7 +3,7 @@ use phf::{phf_set, Set};
 use crate::err::ProcessingResult;
 use crate::proc::{Processor, ProcessorRange};
 use crate::spec::codepoint::is_control;
-use crate::unit::attr::value::{process_attr_value, DelimiterType, ProcessedAttrValue};
+use crate::unit::attr::value::{DelimiterType, process_attr_value, ProcessedAttrValue};
 
 mod value;
 
@@ -37,14 +37,9 @@ fn is_name_char(c: u8) -> bool {
 pub fn process_attr(proc: &mut Processor) -> ProcessingResult<ProcessedAttr> {
     // It's possible to expect attribute name but not be called at an attribute, e.g. due to whitespace between name and
     // value, which causes name to be considered boolean attribute and `=` to be start of new (invalid) attribute name.
-    let name = chain!(proc
-        .match_while_pred(is_name_char)
-        .require_with_reason("attribute name")?
-        .keep()
-        .range());
+    let name = chain!(proc.match_while_pred(is_name_char).require_with_reason("attribute name")?.keep().range());
     let after_name = proc.checkpoint();
 
-    // TODO DOC Attr must be case sensitive
     let should_collapse_and_trim_value_ws = COLLAPSIBLE_AND_TRIMMABLE_ATTRS.contains(&proc[name]);
     let has_value = chain!(proc.match_char(b'=').keep().matched());
 
@@ -57,18 +52,8 @@ pub fn process_attr(proc: &mut Processor) -> ProcessingResult<ProcessedAttr> {
                 proc.erase_written(after_name);
                 (AttrType::NoValue, None)
             }
-            ProcessedAttrValue {
-                delimiter: DelimiterType::Unquoted,
-                value,
-            } => (AttrType::Unquoted, value),
-            ProcessedAttrValue {
-                delimiter: DelimiterType::Double,
-                value,
-            }
-            | ProcessedAttrValue {
-                delimiter: DelimiterType::Single,
-                value,
-            } => (AttrType::Quoted, value),
+            ProcessedAttrValue { delimiter: DelimiterType::Unquoted, value } => (AttrType::Unquoted, value),
+            ProcessedAttrValue { delimiter: DelimiterType::Double, value } | ProcessedAttrValue { delimiter: DelimiterType::Single, value } => (AttrType::Quoted, value),
         }
     };
 
