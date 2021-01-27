@@ -31,8 +31,7 @@ impl ContentType {
     }
 
     fn peek(proc: &mut Processor) -> ContentType {
-        // TODO Optimise to trie.
-
+        // TODO Optimize.
         if proc.at_end() || chain!(proc.match_seq(b"</").matched()) {
             return ContentType::End;
         };
