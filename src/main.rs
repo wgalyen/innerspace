@@ -3,8 +3,7 @@ use std::io::{Read, stderr, Write};
 
 use structopt::StructOpt;
 
-use innerspace::err::ErrorType;
-use innerspace::innerspace;
+use innerspace::{innerspace, ErrorType};
 
 #[derive(StructOpt)]
 struct Cli {

@@ -1,5 +1,5 @@
 use afl::fuzz;
-use innerspace::innerspace;
+use innerspace::{innerspace, ErrorType};
 
 fn main() {
     fuzz!(|data: &[u8]| {
