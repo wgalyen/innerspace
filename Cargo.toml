@@ -1,10 +1,23 @@
 [package]
 name = "innerspace"
+description = "One-pass in-place HTML minifier written in Rust with advanced whitespace handling"
+license = "MIT"
+homepage = "https://github.com/wgalyen/innerspace"
+readme = "README.md"
+keywords = ["html", "compress", "minifier", "minify", "minification"]
+categories = ["compression", "command-line-utilities", "development-tools::build-utils", "web-programming"]
+repository = "https://github.com/wgalyen/innerspace.git"
 version = "0.0.1"
 authors = ["Warren Galyen"]
 edition = "2018"
+
+[badges]
+maintenance = { status = "actively-developed" }
 
 [dependencies]
 phf = { version = "0.8.0", features = ["macros"] }
 cascade = "1.0.0"
 structopt = "0.3.21"
+
+[profile.release]
+panic = 'abort'
